@@ -2,6 +2,21 @@ server:
   port: 8081   # 8080 is used by Kafka UI
 
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pubsub
+    username: pubsub
+    password: pubsub
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update    # auto-creates table on first run; never use in production
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
   kafka:
     bootstrap-servers: localhost:9092
 

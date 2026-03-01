@@ -1,6 +1,9 @@
 package com.example.pubsub.consumer;
 
+import com.example.pubsub.entity.Order;
 import com.example.pubsub.model.OrderEvent;
+import com.example.pubsub.repository.OrderRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.DltHandler;
@@ -11,6 +14,8 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
 
 /**
  * Order consumer simulating the FULFILLMENT service.
@@ -36,7 +41,10 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class OrderConsumerGroupA {
+
+    private final OrderRepository orderRepository;
 
     @RetryableTopic(
             attempts = "3",
@@ -65,6 +73,19 @@ public class OrderConsumerGroupA {
         // Happy path — simulate fulfillment work
         log.info("[GROUP-A / FULFILLMENT] Successfully fulfilled order {} for customer {} (amount={})",
                 event.orderId(), event.customerId(), event.amount());
+
+        // Update order status in DB to COMPLETED.
+        // The order should always exist (saved by the controller before publishing),
+        // but we guard defensively so a missed DB write doesn't crash the consumer.
+        orderRepository.findById(event.orderId()).ifPresentOrElse(
+                order -> {
+                    order.setStatus("COMPLETED");
+                    order.setUpdatedAt(Instant.now());
+                    orderRepository.save(order);
+                    log.info("[GROUP-A / FULFILLMENT] Order {} status updated to COMPLETED in DB", event.orderId());
+                },
+                () -> log.warn("[GROUP-A / FULFILLMENT] Order {} not found in DB — skipping status update", event.orderId())
+        );
     }
 
     /**
