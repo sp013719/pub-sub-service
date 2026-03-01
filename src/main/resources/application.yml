@@ -1,0 +1,38 @@
+server:
+  port: 8081   # 8080 is used by Kafka UI
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # Short logical names in __TypeId__ header (see KafkaProducerConfig.java for mapping)
+        spring.json.add.type.headers: true
+        spring.json.type.mapping: "orderEvent:com.example.pubsub.model.OrderEvent,notificationEvent:com.example.pubsub.model.NotificationEvent"
+
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      # earliest: new consumer groups read from the beginning of the topic
+      # latest: only read messages published after the consumer starts
+      auto-offset-reset: earliest
+      properties:
+        # Trust only our model classes during deserialization (security guardrail)
+        spring.json.trusted.packages: "com.example.pubsub.model"
+        # Resolve the short logical type names from __TypeId__ headers to Java classes
+        spring.json.type.mapping: "orderEvent:com.example.pubsub.model.OrderEvent,notificationEvent:com.example.pubsub.model.NotificationEvent"
+
+    listener:
+      # RECORD: commit offset after each message (fine-grained, predictable)
+      # BATCH: commit after each poll batch (higher throughput, less granular)
+      ack-mode: RECORD
+
+# Expose actuator health endpoint for Docker healthcheck / monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
