@@ -28,3 +28,6 @@ logs/
 
 # Load test output (not project code)
 load_test.py
+
+# maven
+.m2/
