@@ -1,7 +1,8 @@
 package com.example.pubsub.consumer;
 
 import com.example.pubsub.model.OrderEvent;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -27,9 +28,10 @@ import org.springframework.stereotype.Service;
  *   No retry here — analytics can afford to skip a bad message rather than
  *   blocking the pipeline. In production you might log to a metrics store instead.
  */
-@Slf4j
 @Service
 public class OrderConsumerGroupB {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderConsumerGroupB.class);
 
     @KafkaListener(topics = "order-events", groupId = "order-group-b")
     public void consume(

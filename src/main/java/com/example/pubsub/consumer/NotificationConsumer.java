@@ -1,7 +1,8 @@
 package com.example.pubsub.consumer;
 
 import com.example.pubsub.model.NotificationEvent;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -20,9 +21,10 @@ import org.springframework.stereotype.Service;
  *   Trade-off: strict ordering vs throughput. Use single-partition topics when
  *   sequence matters; use multi-partition topics when you need parallelism.
  */
-@Slf4j
 @Service
 public class NotificationConsumer {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationConsumer.class);
 
     @KafkaListener(topics = "notification-events", groupId = "notification-group")
     public void consume(

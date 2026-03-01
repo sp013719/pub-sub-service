@@ -1,8 +1,9 @@
 package com.example.pubsub.consumer;
 
 import com.example.pubsub.model.OrderEvent;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
+import com.example.pubsub.repository.OrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.DltHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.annotation.RetryableTopic;
@@ -12,39 +13,28 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+
 /**
- * Order consumer simulating the FULFILLMENT service.
- *
- * KEY CONCEPT — Retry + Dead-Letter Topic pipeline:
- *
- *   @RetryableTopic creates a retry chain automatically:
- *     order-events → order-events-retry-0 (1s) → order-events-retry-1 (2s)
- *                  → order-events-retry-2 (4s) → order-events-dlt
- *
- *   When processing throws an exception (triggered here by status="FAIL"):
- *     1. Spring re-publishes the message to the next retry topic
- *     2. After exhausting all attempts, the message lands on the DLT
- *     3. @DltHandler receives it for alerting / manual reprocessing
- *
- *   The original topic (order-events) is NOT blocked during retries — other
- *   messages continue flowing. Retries happen on dedicated retry topics.
- *
- * KEY CONCEPT — Consumer Groups:
- *   groupId="order-group-a" gets its own independent offset pointer.
- *   group-a and group-b both receive EVERY message — they don't share work,
- *   they each do their own work on the same stream.
+ * Order consumer simulating the fulfillment service.
  */
-@Slf4j
 @Service
 public class OrderConsumerGroupA {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderConsumerGroupA.class);
+
+    private final OrderRepository orderRepository;
+
+    public OrderConsumerGroupA(OrderRepository orderRepository) {
+        this.orderRepository = orderRepository;
+    }
 
     @RetryableTopic(
             attempts = "3",
             backoff = @Backoff(delay = 1000, multiplier = 2.0),
-            // Use the explicit DLT bean we declared in KafkaTopicConfig
             dltTopicSuffix = "-dlt",
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
-            autoCreateTopics = "false"   // topics already declared as beans
+            autoCreateTopics = "false"
     )
     @KafkaListener(topics = "order-events", groupId = "order-group-a")
     public void consume(
@@ -56,27 +46,31 @@ public class OrderConsumerGroupA {
                 event.orderId(), event.status(), partition, offset);
 
         if ("FAIL".equals(event.status())) {
-            // Simulate a processing failure — triggers the retry pipeline
-            log.warn("[GROUP-A / FULFILLMENT] Order {} has FAIL status — throwing to trigger retry",
+            log.warn("[GROUP-A / FULFILLMENT] Order {} has FAIL status, throwing to trigger retry",
                     event.orderId());
             throw new RuntimeException("Order processing failed for orderId=" + event.orderId());
         }
 
-        // Happy path — simulate fulfillment work
         log.info("[GROUP-A / FULFILLMENT] Successfully fulfilled order {} for customer {} (amount={})",
                 event.orderId(), event.customerId(), event.amount());
+
+        orderRepository.findById(event.orderId()).ifPresentOrElse(
+                order -> {
+                    order.setStatus("COMPLETED");
+                    order.setUpdatedAt(Instant.now());
+                    orderRepository.save(order);
+                    log.info("[GROUP-A] Order {} status updated to COMPLETED in DB", event.orderId());
+                },
+                () -> log.warn("[GROUP-A] Order {} not found in DB, skipping status update", event.orderId())
+        );
     }
 
-    /**
-     * Called after all retry attempts are exhausted.
-     * In production: send an alert, write to a DB, open a support ticket, etc.
-     */
     @DltHandler
     public void handleDlt(
             OrderEvent event,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic
     ) {
-        log.error("[DLT] Order {} exhausted all retries → arrived at dead-letter topic: {}",
+        log.error("[DLT] Order {} exhausted all retries, arrived at dead-letter topic: {}",
                 event.orderId(), topic);
         log.error("[DLT] Manual intervention required for orderId={} customerId={} amount={}",
                 event.orderId(), event.customerId(), event.amount());

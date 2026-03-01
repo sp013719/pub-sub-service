@@ -3,16 +3,16 @@ services:
     image: apache/kafka:3.9.0
     container_name: kafka
     ports:
-      - "9092:9092"   # PLAINTEXT_HOST — Spring Boot (on host) connects here
+      - "9092:9092"   # PLAINTEXT_HOST: Spring Boot (on host) connects here
     environment:
-      # KRaft mode — no Zookeeper
+      # KRaft mode: no Zookeeper
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
 
       # Three listeners:
-      #   CONTROLLER      — KRaft controller traffic (bound to container hostname, not 0.0.0.0)
-      #   PLAINTEXT       — internal broker-to-broker + Kafka UI (container DNS)
-      #   PLAINTEXT_HOST  — external clients (Spring Boot on host) via localhost:9092
+      #   CONTROLLER: KRaft controller traffic
+      #   PLAINTEXT: internal broker-to-broker + Kafka UI
+      #   PLAINTEXT_HOST: external clients on localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_LISTENERS: CONTROLLER://kafka:9093,PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
@@ -42,5 +42,25 @@ services:
         condition: service_healthy
     environment:
       KAFKA_CLUSTERS_0_NAME: local
-      # Kafka UI runs inside Docker — use the internal PLAINTEXT listener
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: pubsub
+      POSTGRES_USER: pubsub
+      POSTGRES_PASSWORD: pubsub
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pubsub -d pubsub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:

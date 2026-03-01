@@ -5,6 +5,7 @@ target/
 *.ear
 
 # Maven
+.m2/
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 

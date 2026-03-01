@@ -1,8 +1,8 @@
 package com.example.pubsub.producer;
 
 import com.example.pubsub.model.OrderEvent;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -20,14 +20,17 @@ import java.util.concurrent.CompletableFuture;
  *   Run the partition-routing curl loop and watch the logs — you'll see:
  *     ORD-001 → partition 2, ORD-002 → partition 0, etc. (deterministic per key)
  */
-@Slf4j
 @Service
-@RequiredArgsConstructor
 public class OrderProducer {
 
     private static final String TOPIC = "order-events";
+    private static final Logger log = LoggerFactory.getLogger(OrderProducer.class);
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    public OrderProducer(KafkaTemplate<String, Object> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
 
     public void send(OrderEvent event) {
         // orderId is the message key → same orderId always lands on the same partition
