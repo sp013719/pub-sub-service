@@ -1,6 +1,7 @@
 package com.example.pubsub.controller;
 
 import com.example.pubsub.model.OrderEvent;
+import com.example.pubsub.model.OrderPublishResponse;
 import com.example.pubsub.producer.OrderProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,8 +10,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
 
 /**
  * REST endpoint for publishing order events.
@@ -30,14 +29,14 @@ public class OrderController {
     private final OrderProducer orderProducer;
 
     @PostMapping
-    public ResponseEntity<Map<String, String>> publishOrder(@RequestBody OrderEvent event) {
+    public ResponseEntity<OrderPublishResponse> publishOrder(@RequestBody OrderEvent event) {
         log.info("[HTTP] Publishing order event: orderId={} status={}", event.orderId(), event.status());
         orderProducer.send(event);
         return ResponseEntity.accepted()
-                .body(Map.of(
-                        "status", "accepted",
-                        "orderId", event.orderId(),
-                        "message", "Order event published to Kafka"
+                .body(new OrderPublishResponse(
+                        "accepted",
+                        event.orderId(),
+                        "Order event published to Kafka"
                 ));
     }
 }
