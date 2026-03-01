@@ -44,3 +44,24 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       # Kafka UI runs inside Docker — use the internal PLAINTEXT listener
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: pubsub
+      POSTGRES_USER: pubsub
+      POSTGRES_PASSWORD: pubsub
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pubsub -d pubsub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
