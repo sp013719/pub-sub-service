@@ -1,6 +1,7 @@
 package com.example.pubsub.consumer;
 
 import com.example.pubsub.model.OrderEvent;
+import com.example.pubsub.model.OrderStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.DltHandler;
@@ -55,7 +56,7 @@ public class OrderConsumerGroupA {
         log.info("[GROUP-A / FULFILLMENT] Received order {} | status={} | partition={} offset={}",
                 event.orderId(), event.status(), partition, offset);
 
-        if ("FAIL".equals(event.status())) {
+        if (event.status() == OrderStatus.FAIL) {
             // Simulate a processing failure — triggers the retry pipeline
             log.warn("[GROUP-A / FULFILLMENT] Order {} has FAIL status — throwing to trigger retry",
                     event.orderId());
